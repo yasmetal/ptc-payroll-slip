@@ -421,6 +421,7 @@ async function captureNodeCanvas_(node){
     if(delays[i]) await sleep_(delays[i]);
     // re-check size right before each attempt in case it dropped to 0 again
     // (e.g. a background tab, or DOM churn from the previous employee's render)
+    if(typeof ensureSlipTabActive_ === 'function') ensureSlipTabActive_();
     await waitForNonZeroSize_(node, 500);
     const canvas = await html2canvas(node, {scale:2, backgroundColor:'#ffffff'});
     if(canvas && canvas.width>0 && canvas.height>0) return canvas;
@@ -428,12 +429,22 @@ async function captureNodeCanvas_(node){
   return null;
 }
 
+// บังคับให้แท็บ "สลิปเงินเดือน" เป็นแท็บที่ active อยู่เสมอก่อนจับภาพ
+// (พบว่าระหว่างส่งอีเมลหลายคนติดต่อกัน บางครั้งแท็บนี้หลุด active ไปเอง
+// ทำให้ panel ถูกซ่อนด้วย CSS และ slipDoc มีขนาด 0x0 จริงๆ ไม่ใช่แค่ยังไม่วาดเสร็จ)
+function ensureSlipTabActive_(){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab==='slip'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active', p.id==='tab-slip'));
+}
+
 async function buildSlipPdf(empId){
   const emp = state.employees.find(e=>e.id===empId);
   if(!emp) return null;
   const prevSelected = document.getElementById('slipEmployeeSelect').value;
+  ensureSlipTabActive_();
   document.getElementById('slipEmployeeSelect').value = empId;
   renderSlip();
+  ensureSlipTabActive_();
 
   const node = document.getElementById('slipDoc');
   const canvas = await captureNodeCanvas_(node);
