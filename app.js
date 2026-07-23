@@ -390,6 +390,11 @@ document.getElementById('slipEmployeeEmail').addEventListener('input', ()=>{
 
 /* ---------------------------------------------------------------------
    PDF build (per employee) — html2canvas + jsPDF, shared by download & email
+   หมายเหตุ (แก้บั๊ก): บางครั้ง html2canvas จับภาพได้ขนาด 0x0 เพราะ DOM
+   ยังวาดไม่เสร็จ (โดยเฉพาะตอนส่งอีเมลรัวๆ ทีละคน) ทำให้ jsPDF.addImage()
+   โยน exception "Incomplete or corrupt PNG file" ซึ่งถ้าไม่ดักไว้จะทำให้
+   ลูปส่งอีเมลทั้งหมดหยุดกลางคันแบบเงียบๆ (ปุ่มค้างที่ "กำลังส่ง... (n/6)")
+   จึงเพิ่มการตรวจสอบขนาด canvas และ retry ก่อน throw ข้อผิดพลาดที่ดักจับได้
    --------------------------------------------------------------------- */
 async function buildSlipPdf(empId){
   const emp = state.employees.find(e=>e.id===empId);
@@ -397,10 +402,24 @@ async function buildSlipPdf(empId){
   const prevSelected = document.getElementById('slipEmployeeSelect').value;
   document.getElementById('slipEmployeeSelect').value = empId;
   renderSlip();
-  await new Promise(r=>setTimeout(r,50)); // let DOM paint
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  await new Promise(r=>setTimeout(r,150)); // let DOM paint
 
   const node = document.getElementById('slipDoc');
-  const canvas = await html2canvas(node, {scale:2, backgroundColor:'#ffffff'});
+  let canvas = await html2canvas(node, {scale:2, backgroundColor:'#ffffff'});
+
+  if(!canvas || canvas.width===0 || canvas.height===0){
+    // retry once after a longer wait — DOM likely hadn't finished painting yet
+    await new Promise(r=>setTimeout(r,400));
+    canvas = await html2canvas(node, {scale:2, backgroundColor:'#ffffff'});
+  }
+
+  if(!canvas || canvas.width===0 || canvas.height===0){
+    document.getElementById('slipEmployeeSelect').value = prevSelected;
+    renderSlip();
+    throw new Error('สร้างรูปสลิปไม่สำเร็จ (แสดงผลขนาด 0x0) กรุณาลองใหม่อีกครั้ง');
+  }
+
   const imgData = canvas.toDataURL('image/png');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
@@ -417,9 +436,14 @@ async function buildSlipPdf(empId){
 }
 
 async function exportSlipToPdf(empId){
-  const built = await buildSlipPdf(empId);
-  if(!built) return;
-  built.pdf.save(built.filename);
+  try{
+    const built = await buildSlipPdf(empId);
+    if(!built) return;
+    built.pdf.save(built.filename);
+  }catch(err){
+    console.error('exportSlipToPdf failed', err);
+    alert('สร้าง/ดาวน์โหลด PDF ไม่สำเร็จ: '+(err && err.message ? err.message : err));
+  }
 }
 
 document.getElementById('btnDownloadSlip').addEventListener('click', ()=>{
@@ -433,7 +457,11 @@ document.getElementById('btnExportAllPdf').addEventListener('click', async ()=>{
   document.querySelector('[data-tab="slip"]').classList.add('active');
   document.getElementById('tab-slip').classList.add('active');
   for(const emp of state.employees){
-    await exportSlipToPdf(emp.id);
+    try{
+      await exportSlipToPdf(emp.id);
+    }catch(err){
+      console.error('export all pdf: employee failed', emp.id, err);
+    }
     await new Promise(r=>setTimeout(r,300));
   }
 });
@@ -457,8 +485,16 @@ async function emailSlipToEmployee(empId){
   if(!emp) return {ok:false};
   if(!emp.email){ return {ok:false, noEmail:true, emp}; }
 
-  const built = await buildSlipPdf(empId);
-  if(!built) return {ok:false};
+  // แก้บั๊ก: buildSlipPdf อาจ throw ได้ (เช่น html2canvas จับภาพ 0x0)
+  // ถ้าไม่ดักไว้ตรงนี้ exception จะหลุดขึ้นไปทำให้ลูป "ส่งสลิปทุกคน" หยุดกลางคัน
+  let built;
+  try{
+    built = await buildSlipPdf(empId);
+  }catch(err){
+    console.error('buildSlipPdf failed for', empId, err);
+    return {ok:false, emp, error:err, message:'สร้าง PDF ไม่สำเร็จ: '+(err && err.message ? err.message : err)};
+  }
+  if(!built) return {ok:false, emp};
 
   const pdfBase64 = pdfToBase64(built.pdf);
   const subject = `สลิปเงินเดือน ${thaiDateStr(state.currentPeriod)} - ${emp.name}`;
@@ -477,7 +513,7 @@ async function emailSlipToEmployee(empId){
     return {ok: data.status==='ok', message: data.message, emp};
   }catch(err){
     console.error(err);
-    return {ok:false, error:err, emp};
+    return {ok:false, error:err, emp, message: err && err.message ? err.message : String(err)};
   }
 }
 
@@ -486,8 +522,15 @@ document.getElementById('btnEmailSlip').addEventListener('click', async ()=>{
   const btn = document.getElementById('btnEmailSlip');
   const original = btn.textContent;
   btn.textContent = 'กำลังส่ง...'; btn.disabled = true;
-  const result = await emailSlipToEmployee(empId);
-  btn.textContent = original; btn.disabled = false;
+  let result;
+  try{
+    result = await emailSlipToEmployee(empId);
+  }catch(err){
+    console.error(err);
+    result = {ok:false, message: err && err.message ? err.message : String(err)};
+  }finally{
+    btn.textContent = original; btn.disabled = false;
+  }
 
   if(result.noEmail){ alert('พนักงานคนนี้ยังไม่มีอีเมล กรุณากรอกอีเมลก่อนส่ง'); return; }
   if(result.ok){ alert(`ส่งสลิปไปที่ ${result.emp.email} สำเร็จ`); }
@@ -509,7 +552,14 @@ document.getElementById('btnEmailAllSlips').addEventListener('click', async ()=>
   let sent = 0, failed = [], skipped = [];
   for(const emp of state.employees){
     btn.textContent = `กำลังส่ง... (${sent+failed.length+skipped.length+1}/${state.employees.length})`;
-    const result = await emailSlipToEmployee(emp.id);
+    let result;
+    try{
+      result = await emailSlipToEmployee(emp.id);
+    }catch(err){
+      // แก้บั๊ก: กันไม่ให้คนใดคนหนึ่ง fail แล้วทำให้ทั้งลูปหยุดค้าง
+      console.error('sendAll: unexpected error for', emp.id, err);
+      result = {ok:false, error:err};
+    }
     if(result.noEmail) skipped.push(emp.name);
     else if(result.ok) sent++;
     else failed.push(emp.name);
