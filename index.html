@@ -45,6 +45,7 @@
         <button id="btnSaveDrive" class="btn btn-accent">☁ บันทึกลง Google Drive</button>
         <button id="btnLoadDrive" class="btn btn-ghost">↻ โหลดข้อมูลจาก Google Drive</button>
         <button id="btnExportAllPdf" class="btn btn-ghost">⬇ ส่งออกสลิปทุกคน (PDF)</button>
+        <button id="btnEmailAllSlips" class="btn btn-ghost">📧 ส่งสลิปทุกคนทาง E-mail</button>
       </div>
     </div>
 
@@ -57,6 +58,7 @@
             <th rowspan="2" class="col-name">ชื่อ - นามสกุล</th>
             <th rowspan="2" class="col-pos">ตำแหน่ง</th>
             <th rowspan="2" class="col-dept">แผนก</th>
+            <th rowspan="2" class="col-email">อีเมล</th>
             <th rowspan="2" class="col-rate">อัตราเงินเดือน</th>
             <th colspan="6" class="grp-income">เงินได้</th>
             <th colspan="6" class="grp-deduct">เงินหัก</th>
@@ -112,8 +114,13 @@
         <label>เลือกพนักงาน</label>
         <select id="slipEmployeeSelect"></select>
       </div>
+      <div class="control-group">
+        <label>อีเมลพนักงาน (แก้ไขได้)</label>
+        <input type="email" id="slipEmployeeEmail" placeholder="name@example.com" style="min-width:220px">
+      </div>
       <div class="control-actions">
         <button id="btnDownloadSlip" class="btn btn-primary">⬇ ดาวน์โหลด PDF (คนนี้)</button>
+        <button id="btnEmailSlip" class="btn btn-accent">📧 ส่งสลิปทาง E-mail (คนนี้)</button>
       </div>
     </div>
 
