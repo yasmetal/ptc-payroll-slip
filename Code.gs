@@ -17,6 +17,12 @@
  * ของบัญชีที่ Deploy โดยอัตโนมัติในการเรียกใช้งานครั้งแรก และเก็บข้อมูล
  * พนักงาน + ข้อมูลเงินเดือนแต่ละงวดไว้ในนั้น ทุกครั้งที่กด "บันทึกลง Google
  * Drive" บนหน้าเว็บ ข้อมูลทั้งหมดจะถูกเขียนทับ (sync) ลงชีตนี้
+ *
+ * สคริปต์นี้ยังใช้ส่งสลิปเงินเดือน (PDF) ทางอีเมลผ่านปุ่ม "📧 ส่งสลิปทาง
+ * E-mail" บนหน้าเว็บ โดยจะส่งจากบัญชี Gmail ของบัญชีที่ Deploy สคริปต์นี้
+ * (ใช้ MailApp.sendEmail) — ตอน Deploy/อนุญาตสิทธิ์ครั้งแรกหรือหลังแก้โค้ด
+ * Google จะขอสิทธิ์เพิ่มเติมสำหรับการส่งอีเมลในนามบัญชีนี้ ให้กด Allow
+ * บัญชี Gmail ฟรีส่งได้ประมาณ 100 ฉบับ/วัน (Workspace ได้มากกว่านี้)
  * -----------------------------------------------------------------------
  */
 
@@ -62,7 +68,37 @@ function doPost(e){
   if(body.action === 'save'){
     return savePayload_(body.payload);
   }
+  if(body.action === 'sendEmail'){
+    return sendEmailPayload_(body.payload);
+  }
   return jsonOutput_({status:'error', message:'unknown action'});
+}
+
+// ส่งสลิปเงินเดือน (PDF) ทางอีเมล ผ่านบัญชี Gmail ของผู้ deploy สคริปต์นี้
+// payload: { to, subject, body, filename, pdfBase64 }
+function sendEmailPayload_(payload){
+  try{
+    if(!payload || !payload.to){
+      return jsonOutput_({status:'error', message:'missing recipient email (to)'});
+    }
+    if(!payload.pdfBase64){
+      return jsonOutput_({status:'error', message:'missing pdfBase64'});
+    }
+    var blob = Utilities.newBlob(
+      Utilities.base64Decode(payload.pdfBase64),
+      'application/pdf',
+      payload.filename || 'slip.pdf'
+    );
+    MailApp.sendEmail({
+      to: payload.to,
+      subject: payload.subject || 'สลิปเงินเดือน',
+      body: payload.body || '',
+      attachments: [blob]
+    });
+    return jsonOutput_({status:'ok'});
+  }catch(err){
+    return jsonOutput_({status:'error', message: String(err)});
+  }
 }
 
 function savePayload_(payload){
@@ -77,11 +113,11 @@ function savePayload_(payload){
     meta.appendRow(['currentPeriod', payload.currentPeriod || '']);
 
     // --- Employees sheet ---
-    var empSheet = getSheet_(ss, 'Employees', ['id','name','position','department','rate']);
+    var empSheet = getSheet_(ss, 'Employees', ['id','name','position','department','rate','email']);
     empSheet.clearContents();
-    empSheet.appendRow(['id','name','position','department','rate']);
+    empSheet.appendRow(['id','name','position','department','rate','email']);
     (payload.employees||[]).forEach(function(emp){
-      empSheet.appendRow([emp.id, emp.name, emp.position, emp.department, emp.rate]);
+      empSheet.appendRow([emp.id, emp.name, emp.position, emp.department, emp.rate, emp.email || '']);
     });
 
     // --- PayrollEntries sheet (flattened: one row per employee per pay period) ---
@@ -133,7 +169,7 @@ function loadPayload_(){
       for(var i=1;i<empRows.length;i++){
         var row = empRows[i];
         if(!row[0]) continue;
-        employees.push({id:row[0], name:row[1], position:row[2], department:row[3], rate:Number(row[4])||0});
+        employees.push({id:row[0], name:row[1], position:row[2], department:row[3], rate:Number(row[4])||0, email:row[5]||''});
       }
     }
 
