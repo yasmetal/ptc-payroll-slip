@@ -1,0 +1,156 @@
+:root{
+  --blue: #dbe9f7;
+  --orange: #fae2d5;
+  --green: #84e291;
+  --yellow: #ffff66;
+  --gray: #d0d0d0;
+  --ink: #1f2937;
+  --border: #b9b9b9;
+  --page-bg: #eef1f5;
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:'Sarabun','Angsana New',sans-serif;
+  background:var(--page-bg);
+  color:var(--ink);
+}
+
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#1e3a5f;
+  color:#fff;
+  padding:14px 24px;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.topbar h1{font-size:20px;margin:0;}
+.topbar .subtitle{font-size:13px;opacity:.85;}
+.topbar-left{display:flex;flex-direction:column;}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.sync-status{font-size:12px;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:12px;}
+
+.tabs{
+  display:flex;
+  background:#fff;
+  border-bottom:2px solid #ddd;
+  padding:0 24px;
+}
+.tab-btn{
+  border:none;background:none;padding:14px 20px;font-size:15px;cursor:pointer;
+  border-bottom:3px solid transparent;font-family:inherit;color:#555;
+}
+.tab-btn.active{border-bottom-color:#1e3a5f;color:#1e3a5f;font-weight:600;}
+
+main{padding:20px 24px 60px;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+.control-bar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:16px;
+  align-items:flex-end;
+  background:#fff;
+  padding:14px 18px;
+  border-radius:10px;
+  margin-bottom:16px;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+.control-group{display:flex;flex-direction:column;gap:4px;font-size:13px;}
+.control-group input, .control-group select{
+  padding:7px 10px;border:1px solid #ccc;border-radius:6px;font-family:inherit;font-size:14px;
+}
+.control-actions{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;}
+
+.btn{
+  border:none;border-radius:6px;padding:9px 16px;font-size:14px;cursor:pointer;font-family:inherit;
+  transition:opacity .15s;
+}
+.btn:hover{opacity:.85;}
+.btn-primary{background:#1e3a5f;color:#fff;}
+.btn-accent{background:#2e7d32;color:#fff;}
+.btn-ghost{background:#eee;color:#333;}
+.btn-danger{background:#c0392b;color:#fff;}
+
+.table-scroll{overflow-x:auto;background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+
+table.payroll-table{border-collapse:collapse;width:100%;min-width:1500px;font-size:13px;}
+table.payroll-table th, table.payroll-table td{
+  border:1px solid var(--border);
+  padding:6px 8px;
+  text-align:center;
+  white-space:nowrap;
+}
+table.payroll-table thead th{font-weight:600;}
+table.payroll-table thead .grp-income{background:var(--blue);}
+table.payroll-table thead .grp-deduct{background:var(--orange);}
+table.payroll-table thead .col-net{background:var(--yellow);}
+table.payroll-table td.col-name, table.payroll-table td.col-pos, table.payroll-table td.col-dept{
+  text-align:left;white-space:normal;min-width:130px;
+}
+table.payroll-table input{
+  width:90px;border:1px solid #ddd;border-radius:4px;padding:4px 6px;text-align:right;font-family:inherit;font-size:13px;
+}
+table.payroll-table input.text{width:130px;text-align:left;}
+table.payroll-table td.readonly{background:#f5f7fa;font-weight:600;text-align:right;}
+table.payroll-table .col-net{font-weight:700;background:#fffde7;text-align:right;}
+tr.total-row{background:var(--green);font-weight:700;}
+tr.total-row td{text-align:right;}
+tr.total-row td:first-child{text-align:left;}
+.btn-remove{background:#c0392b;color:#fff;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:12px;}
+.btn-mini{background:#1e3a5f;color:#fff;border:none;border-radius:4px;padding:3px 6px;cursor:pointer;font-size:11px;margin-left:2px;}
+
+.hint{font-size:12px;color:#777;margin-top:8px;}
+
+/* Slip */
+.slip-wrapper{display:flex;justify-content:center;}
+.slip-doc{
+  background:#fff;
+  width:780px;
+  max-width:100%;
+  padding:36px 40px;
+  box-shadow:0 1px 6px rgba(0,0,0,.12);
+  font-family:'Sarabun','Angsana New',serif;
+}
+.slip-company{text-align:center;font-size:24px;font-weight:700;}
+.slip-title{text-align:center;font-size:18px;font-weight:600;margin-bottom:18px;}
+table.slip-meta{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:15px;}
+table.slip-meta td{padding:6px 4px;border-bottom:1px dotted #999;}
+table.slip-meta td.lbl{width:110px;color:#444;white-space:nowrap;}
+table.slip-meta td.val{font-weight:600;padding-right:20px;}
+
+table.slip-body{width:100%;border-collapse:collapse;font-size:15px;}
+table.slip-body th{background:#f0f0f0;border:2px solid #333;padding:8px;font-size:15px;}
+table.slip-body td{border:1px solid #ccc;padding:8px 10px;}
+table.slip-body td.lbl{width:28%;}
+table.slip-body td.val{width:22%;text-align:right;font-weight:600;}
+tr.slip-total-row{background:var(--gray);font-weight:700;}
+tr.slip-total-row td{border:2px solid #333;}
+
+table.slip-net{width:100%;border-collapse:collapse;margin-top:10px;}
+table.slip-net td{border:2px solid #333;background:var(--gray);padding:10px;font-size:17px;font-weight:700;}
+table.slip-net td.val{text-align:right;}
+
+table.slip-sign{width:100%;margin-top:50px;}
+table.slip-sign td{width:50%;text-align:center;font-size:14px;padding-top:20px;}
+
+/* Modal */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+  align-items:center;justify-content:center;z-index:50;
+}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;padding:24px;border-radius:10px;width:460px;max-width:92vw;}
+.modal h2{margin-top:0;font-size:18px;}
+.modal p{font-size:13px;color:#555;}
+.modal label{font-size:13px;display:block;margin-bottom:6px;}
+.modal input{width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;margin-bottom:14px;font-family:inherit;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+
+@media print{
+  .topbar,.tabs,.control-bar{display:none;}
+}
