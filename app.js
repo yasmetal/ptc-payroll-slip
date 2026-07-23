@@ -391,33 +391,54 @@ document.getElementById('slipEmployeeEmail').addEventListener('input', ()=>{
 /* ---------------------------------------------------------------------
    PDF build (per employee) — html2canvas + jsPDF, shared by download & email
    หมายเหตุ (แก้บั๊ก): บางครั้ง html2canvas จับภาพได้ขนาด 0x0 เพราะ DOM
-   ยังวาดไม่เสร็จ (โดยเฉพาะตอนส่งอีเมลรัวๆ ทีละคน) ทำให้ jsPDF.addImage()
-   โยน exception "Incomplete or corrupt PNG file" ซึ่งถ้าไม่ดักไว้จะทำให้
-   ลูปส่งอีเมลทั้งหมดหยุดกลางคันแบบเงียบๆ (ปุ่มค้างที่ "กำลังส่ง... (n/6)")
-   จึงเพิ่มการตรวจสอบขนาด canvas และ retry ก่อน throw ข้อผิดพลาดที่ดักจับได้
+   ยังวาดไม่เสร็จ (โดยเฉพาะตอนส่งอีเมลรัวๆ ทีละคน หรือถ้าแท็บเบราว์เซอร์ไม่ได้
+   อยู่ด้านหน้า/กำลัง minimize ซึ่งจะทำให้ requestAnimationFrame ไม่ทำงานเลย)
+   ทำให้ jsPDF.addImage() โยน exception "Incomplete or corrupt PNG file"
+   ซึ่งถ้าไม่ดักไว้จะทำให้ลูปส่งอีเมลทั้งหมดหยุดกลางคันแบบเงียบๆ
+   จึงเปลี่ยนมาใช้การ "รอจนกว่า element จะมีขนาดจริงบนจอ" (poll ด้วย
+   getBoundingClientRect แทนการเดา delay คงที่) ร่วมกับการลองซ้ำ
+   html2canvas หลายครั้งแบบเพิ่ม delay ขึ้นเรื่อยๆ ก่อนจะยอมแพ้จริงๆ
    --------------------------------------------------------------------- */
+function sleep_(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+// รอจน node มีขนาดที่แสดงผลจริง (width/height > 0) หรือหมดเวลาที่กำหนด
+async function waitForNonZeroSize_(node, timeoutMs){
+  const start = Date.now();
+  while(Date.now()-start < timeoutMs){
+    const rect = node.getBoundingClientRect();
+    if(rect.width>0 && rect.height>0) return true;
+    await sleep_(100);
+  }
+  return false;
+}
+
+// พยายามจับภาพ node ด้วย html2canvas หลายครั้ง (เพิ่ม delay ขึ้นเรื่อยๆ)
+// จนกว่าจะได้ canvas ที่มีขนาดจริง หรือลองครบทุกรอบแล้วยังไม่สำเร็จ (คืน null)
+async function captureNodeCanvas_(node){
+  await waitForNonZeroSize_(node, 3000);
+  const delays = [0, 200, 500, 1000, 2000];
+  for(let i=0;i<delays.length;i++){
+    if(delays[i]) await sleep_(delays[i]);
+    const canvas = await html2canvas(node, {scale:2, backgroundColor:'#ffffff'});
+    if(canvas && canvas.width>0 && canvas.height>0) return canvas;
+  }
+  return null;
+}
+
 async function buildSlipPdf(empId){
   const emp = state.employees.find(e=>e.id===empId);
   if(!emp) return null;
   const prevSelected = document.getElementById('slipEmployeeSelect').value;
   document.getElementById('slipEmployeeSelect').value = empId;
   renderSlip();
-  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-  await new Promise(r=>setTimeout(r,150)); // let DOM paint
 
   const node = document.getElementById('slipDoc');
-  let canvas = await html2canvas(node, {scale:2, backgroundColor:'#ffffff'});
+  const canvas = await captureNodeCanvas_(node);
 
-  if(!canvas || canvas.width===0 || canvas.height===0){
-    // retry once after a longer wait — DOM likely hadn't finished painting yet
-    await new Promise(r=>setTimeout(r,400));
-    canvas = await html2canvas(node, {scale:2, backgroundColor:'#ffffff'});
-  }
-
-  if(!canvas || canvas.width===0 || canvas.height===0){
+  if(!canvas){
     document.getElementById('slipEmployeeSelect').value = prevSelected;
     renderSlip();
-    throw new Error('สร้างรูปสลิปไม่สำเร็จ (แสดงผลขนาด 0x0) กรุณาลองใหม่อีกครั้ง');
+    throw new Error('สร้างรูปสลิปไม่สำเร็จ (แสดงผลขนาด 0x0) กรุณาเปิดแท็บนี้ค้างไว้บนหน้าจอแล้วลองใหม่อีกครั้ง');
   }
 
   const imgData = canvas.toDataURL('image/png');
