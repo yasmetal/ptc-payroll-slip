@@ -415,10 +415,13 @@ async function waitForNonZeroSize_(node, timeoutMs){
 // พยายามจับภาพ node ด้วย html2canvas หลายครั้ง (เพิ่ม delay ขึ้นเรื่อยๆ)
 // จนกว่าจะได้ canvas ที่มีขนาดจริง หรือลองครบทุกรอบแล้วยังไม่สำเร็จ (คืน null)
 async function captureNodeCanvas_(node){
-  await waitForNonZeroSize_(node, 3000);
-  const delays = [0, 200, 500, 1000, 2000];
+  await waitForNonZeroSize_(node, 6000);
+  const delays = [0, 300, 700, 1500, 3000, 5000];
   for(let i=0;i<delays.length;i++){
     if(delays[i]) await sleep_(delays[i]);
+    // re-check size right before each attempt in case it dropped to 0 again
+    // (e.g. a background tab, or DOM churn from the previous employee's render)
+    await waitForNonZeroSize_(node, 500);
     const canvas = await html2canvas(node, {scale:2, backgroundColor:'#ffffff'});
     if(canvas && canvas.width>0 && canvas.height>0) return canvas;
   }
@@ -574,12 +577,18 @@ document.getElementById('btnEmailAllSlips').addEventListener('click', async ()=>
   for(const emp of state.employees){
     btn.textContent = `กำลังส่ง... (${sent+failed.length+skipped.length+1}/${state.employees.length})`;
     let result;
-    try{
-      result = await emailSlipToEmployee(emp.id);
-    }catch(err){
-      // แก้บั๊ก: กันไม่ให้คนใดคนหนึ่ง fail แล้วทำให้ทั้งลูปหยุดค้าง
-      console.error('sendAll: unexpected error for', emp.id, err);
-      result = {ok:false, error:err};
+    // ลองส่งได้สูงสุด 2 ครั้งต่อพนักงาน 1 คน (เผื่อ capture รูปสลิปพลาดชั่วคราว
+    // จากเครื่อง/แท็บที่ทำงานหนักต่อเนื่องหลายคน) ก่อนจะถือว่า "ส่งไม่สำเร็จ" จริง
+    for(let attempt=1; attempt<=2; attempt++){
+      try{
+        result = await emailSlipToEmployee(emp.id);
+      }catch(err){
+        // แก้บั๊ก: กันไม่ให้คนใดคนหนึ่ง fail แล้วทำให้ทั้งลูปหยุดค้าง
+        console.error('sendAll: unexpected error for', emp.id, 'attempt', attempt, err);
+        result = {ok:false, error:err};
+      }
+      if(result.ok || result.noEmail) break;
+      if(attempt===1) await new Promise(r=>setTimeout(r,1000));
     }
     if(result.noEmail) skipped.push(emp.name);
     else if(result.ok) sent++;
