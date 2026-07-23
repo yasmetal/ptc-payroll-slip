@@ -14,6 +14,16 @@ const GAS_URL_KEY = 'ptc_payroll_gas_url';
 const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
   'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
+// อีเมลเริ่มต้นของพนักงานแต่ละคน (แก้ไขได้ภายหลังในตารางเงินเดือน หรือแท็บสลิป)
+const DEFAULT_EMAILS = {
+  'Emp.001': 'kesara385860@gmail.com',
+  'Emp.002': 'nuriyah2655@gmail.com',
+  'Emp.003': 'kaewngamkhakayyaratn@gmail.com',
+  'Emp.004': 'jane.korada@gmail.com',
+  'Emp.005': 'khattiyanee25122549@gmail.com',
+  'Emp.006': 'sakunrat200646@gmail.com'
+};
+
 /* ---------------------------------------------------------------------
    Default / seed data — real sample data copied from the source workbook
    --------------------------------------------------------------------- */
@@ -21,12 +31,12 @@ function seedState(){
   return {
     company: 'บริษัท พัทธา คอร์ปอเรชั่น จำกัด',
     employees: [
-      {id:'Emp.001', name:'เกศรา นาก้อนทอง (เฟิน)',      position:'หัวหน้าคลังและนำเข้า', department:'นำเข้าสินค้า', rate:15000},
-      {id:'Emp.002', name:'นูรียะห์ บาราเฮง (ยะห์)',        position:'เจ้าหน้า QC',          department:'QC สินค้า',   rate:11000},
-      {id:'Emp.003', name:'กัญญารัตน์ แก้วงามขำ (กุ้ย)',    position:'แพ็คสินค้า',           department:'แพ็คสินค้า',  rate:10500},
-      {id:'Emp.004', name:'กรฎา พรหมสุวรรณ์ (เจน)',        position:'แพ็คสินค้า',           department:'แพ็คสินค้า',  rate:10500},
-      {id:'Emp.005', name:'ขัตติยานี สาริศรี (นุ่น)',       position:'นำเข้าสินค้า',         department:'นำเข้าสินค้า', rate:10500},
-      {id:'Emp.006', name:'สกุลรัตน์ ประดิษสุวรรณ์ (ต้า)',  position:'เจ้าหน้า QC',          department:'เจ้าหน้า QC', rate:10500}
+      {id:'Emp.001', name:'เกศรา นาก้อนทอง (เฟิน)',      position:'หัวหน้าคลังและนำเข้า', department:'นำเข้าสินค้า', rate:15000, email:DEFAULT_EMAILS['Emp.001']},
+      {id:'Emp.002', name:'นูรียะห์ บาราเฮง (ยะห์)',        position:'เจ้าหน้า QC',          department:'QC สินค้า',   rate:11000, email:DEFAULT_EMAILS['Emp.002']},
+      {id:'Emp.003', name:'กัญญารัตน์ แก้วงามขำ (กุ้ย)',    position:'แพ็คสินค้า',           department:'แพ็คสินค้า',  rate:10500, email:DEFAULT_EMAILS['Emp.003']},
+      {id:'Emp.004', name:'กรฎา พรหมสุวรรณ์ (เจน)',        position:'แพ็คสินค้า',           department:'แพ็คสินค้า',  rate:10500, email:DEFAULT_EMAILS['Emp.004']},
+      {id:'Emp.005', name:'ขัตติยานี สาริศรี (นุ่น)',       position:'นำเข้าสินค้า',         department:'นำเข้าสินค้า', rate:10500, email:DEFAULT_EMAILS['Emp.005']},
+      {id:'Emp.006', name:'สกุลรัตน์ ประดิษสุวรรณ์ (ต้า)',  position:'เจ้าหน้า QC',          department:'เจ้าหน้า QC', rate:10500, email:DEFAULT_EMAILS['Emp.006']}
     ],
     currentPeriod: '2026-06-30',
     payPeriods: {
@@ -59,9 +69,21 @@ let state = loadLocalState();
 function loadLocalState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw) return JSON.parse(raw);
+    if(raw){
+      const loaded = JSON.parse(raw);
+      backfillEmails(loaded);
+      return loaded;
+    }
   }catch(e){ console.warn('load state failed', e); }
   return seedState();
+}
+
+// เติมอีเมลเริ่มต้นให้พนักงานที่เคยบันทึกไว้ก่อนมีฟีเจอร์นี้ (ไม่ทับอีเมลที่แก้ไขไว้แล้ว)
+function backfillEmails(s){
+  (s.employees||[]).forEach(emp=>{
+    if(!emp.email && DEFAULT_EMAILS[emp.id]) emp.email = DEFAULT_EMAILS[emp.id];
+    if(emp.email==null) emp.email = '';
+  });
 }
 function saveLocalState(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -142,6 +164,7 @@ function renderPayrollTable(){
       <td class="col-name"><input class="text" data-field="name" value="${escapeHtml(emp.name)}"></td>
       <td class="col-pos"><input class="text" data-field="position" value="${escapeHtml(emp.position)}"></td>
       <td class="col-dept"><input class="text" data-field="department" value="${escapeHtml(emp.department)}"></td>
+      <td class="col-email"><input class="text" type="email" data-field="email" value="${escapeHtml(emp.email||'')}" placeholder="name@example.com" style="width:170px"></td>
       <td><input type="number" data-field="rate" value="${emp.rate}"></td>
       <td class="readonly">${fmt(r.salary)}</td>
       <td><input type="number" data-field="positionAllowance" value="${entry.positionAllowance}"></td>
@@ -196,7 +219,7 @@ document.getElementById('payrollBody').addEventListener('input', (e)=>{
   const emp = state.employees.find(x=>x.id===empId);
   const entry = getEntry(empId);
 
-  const employeeFields = ['id','name','position','department','rate'];
+  const employeeFields = ['id','name','position','department','rate','email'];
   if(employeeFields.includes(field)){
     if(field==='id'){
       const newId = e.target.value.trim();
@@ -352,14 +375,25 @@ function renderSlip(){
   document.getElementById('s_netpay').textContent = fmt(r.netPay)+' บาท';
 
   document.querySelector('.slip-company').textContent = state.company;
+
+  document.getElementById('slipEmployeeEmail').value = emp.email || '';
 }
 
-/* ---------------------------------------------------------------------
-   PDF export (per employee) — html2canvas + jsPDF, one PDF per person
-   --------------------------------------------------------------------- */
-async function exportSlipToPdf(empId){
+// อัปเดตอีเมลของพนักงานที่เลือกอยู่ในแท็บสลิป (แก้ไขได้ภายหลัง, sync กับตารางเงินเดือน)
+document.getElementById('slipEmployeeEmail').addEventListener('input', ()=>{
+  const empId = document.getElementById('slipEmployeeSelect').value;
   const emp = state.employees.find(e=>e.id===empId);
   if(!emp) return;
+  emp.email = document.getElementById('slipEmployeeEmail').value.trim();
+  saveLocalState();
+});
+
+/* ---------------------------------------------------------------------
+   PDF build (per employee) — html2canvas + jsPDF, shared by download & email
+   --------------------------------------------------------------------- */
+async function buildSlipPdf(empId){
+  const emp = state.employees.find(e=>e.id===empId);
+  if(!emp) return null;
   const prevSelected = document.getElementById('slipEmployeeSelect').value;
   document.getElementById('slipEmployeeSelect').value = empId;
   renderSlip();
@@ -375,10 +409,17 @@ async function exportSlipToPdf(empId){
   const imgH = canvas.height * (imgW/canvas.width);
   pdf.addImage(imgData,'PNG',20,20,imgW,imgH);
   const fname = `Slip_${emp.id}_${state.currentPeriod}.pdf`.replace(/[^\w.\-]+/g,'_');
-  pdf.save(fname);
 
   document.getElementById('slipEmployeeSelect').value = prevSelected;
   renderSlip();
+
+  return {pdf, filename:fname, emp};
+}
+
+async function exportSlipToPdf(empId){
+  const built = await buildSlipPdf(empId);
+  if(!built) return;
+  built.pdf.save(built.filename);
 }
 
 document.getElementById('btnDownloadSlip').addEventListener('click', ()=>{
@@ -395,6 +436,91 @@ document.getElementById('btnExportAllPdf').addEventListener('click', async ()=>{
     await exportSlipToPdf(emp.id);
     await new Promise(r=>setTimeout(r,300));
   }
+});
+
+/* ---------------------------------------------------------------------
+   Email slip (per employee) — sends the PDF as an attachment via the
+   Google Apps Script backend (Gmail account that deployed Code.gs)
+   --------------------------------------------------------------------- */
+function pdfToBase64(pdf){
+  // pdf.output('datauristring') -> "data:application/pdf;filename=...;base64,XXXXX"
+  const datauri = pdf.output('datauristring');
+  const idx = datauri.indexOf('base64,');
+  return idx>=0 ? datauri.slice(idx+7) : '';
+}
+
+async function emailSlipToEmployee(empId){
+  const gasUrl = getGasUrl();
+  if(!gasUrl){ alert('กรุณาตั้งค่า Apps Script Web App URL ก่อน (ปุ่ม ⚙ ตั้งค่า)'); return {ok:false, skipped:true}; }
+
+  const emp = state.employees.find(e=>e.id===empId);
+  if(!emp) return {ok:false};
+  if(!emp.email){ return {ok:false, noEmail:true, emp}; }
+
+  const built = await buildSlipPdf(empId);
+  if(!built) return {ok:false};
+
+  const pdfBase64 = pdfToBase64(built.pdf);
+  const subject = `สลิปเงินเดือน ${thaiDateStr(state.currentPeriod)} - ${emp.name}`;
+  const body = `เรียนคุณ ${emp.name}\n\nแนบไฟล์สลิปเงินเดือนประจำงวดวันที่ ${thaiDateStr(state.currentPeriod)} มาด้วยแล้ว\n\nขอบคุณครับ/ค่ะ\n${state.company}`;
+
+  try{
+    const res = await fetch(gasUrl, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action:'sendEmail',
+        payload:{ to: emp.email, subject, body, filename: built.filename, pdfBase64 }
+      })
+    });
+    const data = await res.json();
+    return {ok: data.status==='ok', message: data.message, emp};
+  }catch(err){
+    console.error(err);
+    return {ok:false, error:err, emp};
+  }
+}
+
+document.getElementById('btnEmailSlip').addEventListener('click', async ()=>{
+  const empId = document.getElementById('slipEmployeeSelect').value;
+  const btn = document.getElementById('btnEmailSlip');
+  const original = btn.textContent;
+  btn.textContent = 'กำลังส่ง...'; btn.disabled = true;
+  const result = await emailSlipToEmployee(empId);
+  btn.textContent = original; btn.disabled = false;
+
+  if(result.noEmail){ alert('พนักงานคนนี้ยังไม่มีอีเมล กรุณากรอกอีเมลก่อนส่ง'); return; }
+  if(result.ok){ alert(`ส่งสลิปไปที่ ${result.emp.email} สำเร็จ`); }
+  else { alert('ส่งอีเมลไม่สำเร็จ: '+(result.message||'ตรวจสอบ URL และการ Deploy Apps Script (ดู README.md)')); }
+});
+
+document.getElementById('btnEmailAllSlips').addEventListener('click', async ()=>{
+  if(!getGasUrl()){ alert('กรุณาตั้งค่า Apps Script Web App URL ก่อน (ปุ่ม ⚙ ตั้งค่า)'); return; }
+  if(!confirm(`จะส่งสลิปเงินเดือนงวด ${thaiDateStr(state.currentPeriod)} ให้พนักงานทุกคนที่มีอีเมลทาง E-mail ดำเนินการต่อ?`)) return;
+
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelector('[data-tab="slip"]').classList.add('active');
+  document.getElementById('tab-slip').classList.add('active');
+
+  const btn = document.getElementById('btnEmailAllSlips');
+  const original = btn.textContent;
+  btn.disabled = true;
+  let sent = 0, failed = [], skipped = [];
+  for(const emp of state.employees){
+    btn.textContent = `กำลังส่ง... (${sent+failed.length+skipped.length+1}/${state.employees.length})`;
+    const result = await emailSlipToEmployee(emp.id);
+    if(result.noEmail) skipped.push(emp.name);
+    else if(result.ok) sent++;
+    else failed.push(emp.name);
+    await new Promise(r=>setTimeout(r,300));
+  }
+  btn.textContent = original; btn.disabled = false;
+
+  let msg = `ส่งสำเร็จ ${sent} คน`;
+  if(skipped.length) msg += `\nข้ามเพราะไม่มีอีเมล: ${skipped.join(', ')}`;
+  if(failed.length) msg += `\nส่งไม่สำเร็จ: ${failed.join(', ')}`;
+  alert(msg);
 });
 
 /* ---------------------------------------------------------------------
