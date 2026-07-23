@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบเงินเดือน PTC | Payroll &amp; Slip System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <h1 id="companyNameHeader">บริษัท พัทธา คอร์ปอเรชั่น จำกัด</h1>
+    <span class="subtitle">ระบบคำนวณเงินเดือนและใบจ่ายเงินเดือน (Payroll &amp; Slip)</span>
+  </div>
+  <div class="topbar-right">
+    <span id="syncStatus" class="sync-status">ยังไม่ได้เชื่อมต่อ Google Drive</span>
+    <button id="btnSettings" class="btn btn-ghost" title="ตั้งค่าการเชื่อมต่อ Google Drive">⚙ ตั้งค่า</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="payroll">📋 ตารางเงินเดือน</button>
+  <button class="tab-btn" data-tab="slip">🧾 สลิปเงินเดือน</button>
+</nav>
+
+<main>
+
+  <!-- ============ TAB: PAYROLL TABLE ============ -->
+  <section id="tab-payroll" class="tab-panel active">
+
+    <div class="control-bar">
+      <div class="control-group">
+        <label>งวดจ่ายเงินเดือน (วันที่จ่าย)</label>
+        <input type="date" id="payDate">
+      </div>
+      <div class="control-group">
+        <label>ชื่อบริษัท</label>
+        <input type="text" id="companyNameInput" value="บริษัท พัทธา คอร์ปอเรชั่น จำกัด">
+      </div>
+      <div class="control-actions">
+        <button id="btnAddEmployee" class="btn btn-primary">+ เพิ่มพนักงาน</button>
+        <button id="btnSaveDrive" class="btn btn-accent">☁ บันทึกลง Google Drive</button>
+        <button id="btnLoadDrive" class="btn btn-ghost">↻ โหลดข้อมูลจาก Google Drive</button>
+        <button id="btnExportAllPdf" class="btn btn-ghost">⬇ ส่งออกสลิปทุกคน (PDF)</button>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <table id="payrollTable" class="payroll-table">
+        <thead>
+          <tr class="grp-row">
+            <th rowspan="2" class="col-no">ลำดับ</th>
+            <th rowspan="2" class="col-id">รหัสพนักงาน</th>
+            <th rowspan="2" class="col-name">ชื่อ - นามสกุล</th>
+            <th rowspan="2" class="col-pos">ตำแหน่ง</th>
+            <th rowspan="2" class="col-dept">แผนก</th>
+            <th rowspan="2" class="col-rate">อัตราเงินเดือน</th>
+            <th colspan="6" class="grp-income">เงินได้</th>
+            <th colspan="6" class="grp-deduct">เงินหัก</th>
+            <th rowspan="2" class="col-net">รวมเงินได้สุทธิ</th>
+            <th rowspan="2" class="col-actions"></th>
+          </tr>
+          <tr class="grp-row2">
+            <th class="grp-income">เงินเดือน</th>
+            <th class="grp-income">ค่าตำแหน่ง</th>
+            <th class="grp-income">ค่าล่วงเวลา</th>
+            <th class="grp-income">คอมมิชชั่น</th>
+            <th class="grp-income">โบนัส</th>
+            <th class="grp-income">เงินได้อื่นๆ</th>
+            <th class="grp-deduct">ประกันสังคม<br><small>(% เงินเดือน)</small></th>
+            <th class="grp-deduct">ภาษีเงินได้</th>
+            <th class="grp-deduct">สำรองเลี้ยงชีพ</th>
+            <th class="grp-deduct">หักเงินกู้ยืม</th>
+            <th class="grp-deduct">หัก ณ ที่จ่าย 3%</th>
+            <th class="grp-deduct">รวมเงินหัก</th>
+          </tr>
+        </thead>
+        <tbody id="payrollBody">
+          <!-- rows injected by app.js -->
+        </tbody>
+        <tfoot>
+          <tr id="payrollTotalRow" class="total-row">
+            <td colspan="6">รวมทั้งสิ้น</td>
+            <td id="tot_income"></td>
+            <td id="tot_pos"></td>
+            <td id="tot_ot"></td>
+            <td id="tot_comm"></td>
+            <td id="tot_bonus"></td>
+            <td id="tot_other"></td>
+            <td id="tot_sso"></td>
+            <td id="tot_tax"></td>
+            <td id="tot_pf"></td>
+            <td id="tot_loan"></td>
+            <td id="tot_wht"></td>
+            <td id="tot_deduct"></td>
+            <td id="tot_net"></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <p class="hint">แตะที่ตัวเลขในตารางเพื่อแก้ไข ระบบจะคำนวณผลรวมให้อัตโนมัติตามสูตรเดียวกับไฟล์ต้นฉบับ</p>
+  </section>
+
+  <!-- ============ TAB: SLIP ============ -->
+  <section id="tab-slip" class="tab-panel">
+    <div class="control-bar">
+      <div class="control-group">
+        <label>เลือกพนักงาน</label>
+        <select id="slipEmployeeSelect"></select>
+      </div>
+      <div class="control-actions">
+        <button id="btnDownloadSlip" class="btn btn-primary">⬇ ดาวน์โหลด PDF (คนนี้)</button>
+      </div>
+    </div>
+
+    <div class="slip-wrapper">
+      <div id="slipDoc" class="slip-doc">
+        <div class="slip-company">บริษัท พัทธา คอร์ปอเรชั่น จำกัด</div>
+        <div class="slip-title">ใบจ่ายเงินเดือน (Pay Slip)</div>
+
+        <table class="slip-meta">
+          <tr>
+            <td class="lbl">รหัสพนักงาน :</td><td class="val" id="s_empid"></td>
+            <td class="lbl">ตำแหน่ง :</td><td class="val" id="s_pos"></td>
+          </tr>
+          <tr>
+            <td class="lbl">ชื่อ - นามสกุล :</td><td class="val" id="s_name"></td>
+            <td class="lbl">แผนก :</td><td class="val" id="s_dept"></td>
+          </tr>
+          <tr>
+            <td class="lbl">วันที่จ่าย :</td><td class="val" id="s_paydate"></td>
+            <td class="lbl">ค่าจ้างเดือน :</td><td class="val" id="s_month"></td>
+          </tr>
+        </table>
+
+        <table class="slip-body">
+          <tr>
+            <th colspan="2">เงินได้</th>
+            <th colspan="2">เงินหัก</th>
+          </tr>
+          <tr><td class="lbl">เงินเดือน</td><td class="val" id="s_salary"></td><td class="lbl">ประกันสังคม</td><td class="val" id="s_sso"></td></tr>
+          <tr><td class="lbl">ค่าตำแหน่ง</td><td class="val" id="s_posallow"></td><td class="lbl">ภาษีเงินได้</td><td class="val" id="s_tax"></td></tr>
+          <tr><td class="lbl">ค่าล่วงเวลา</td><td class="val" id="s_ot"></td><td class="lbl">สำรองเลี้ยงชีพ</td><td class="val" id="s_pf"></td></tr>
+          <tr><td class="lbl">คอมมิชชั่น</td><td class="val" id="s_comm"></td><td class="lbl">หักเงินกู้ยืม</td><td class="val" id="s_loan"></td></tr>
+          <tr><td class="lbl">โบนัส</td><td class="val" id="s_bonus"></td><td class="lbl">หัก ณ ที่จ่าย 3%</td><td class="val" id="s_wht"></td></tr>
+          <tr><td class="lbl">เงินอื่นๆ</td><td class="val" id="s_otherinc"></td><td></td><td></td></tr>
+          <tr class="slip-total-row">
+            <td class="lbl">รวมเงินได้</td><td class="val" id="s_totalincome"></td>
+            <td class="lbl">รวมเงินหัก</td><td class="val" id="s_totaldeduct"></td>
+          </tr>
+        </table>
+
+        <table class="slip-net">
+          <tr>
+            <td class="lbl">รวมเงินได้สุทธิ</td>
+            <td class="val" id="s_netpay"></td>
+          </tr>
+        </table>
+
+        <table class="slip-sign">
+          <tr>
+            <td>ลงชื่อผู้จ่ายเงิน .............................................</td>
+            <td>ลงชื่อผู้รับเงิน .............................................</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="modal-overlay">
+  <div class="modal">
+    <h2>ตั้งค่าการเชื่อมต่อ Google Drive</h2>
+    <p>วาง URL ของ Google Apps Script Web App (ดูวิธีสร้างใน README.md) เพื่อให้ระบบบันทึก/โหลดข้อมูลจาก Google Drive ของคุณ</p>
+    <label>Apps Script Web App URL</label>
+    <input type="text" id="gasUrlInput" placeholder="https://script.google.com/macros/s/XXXXXXXX/exec">
+    <div class="modal-actions">
+      <button id="btnSaveSettings" class="btn btn-primary">บันทึก</button>
+      <button id="btnCloseSettings" class="btn btn-ghost">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
